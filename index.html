@@ -39,7 +39,6 @@
           border-radius: 5px;
       }
       .remark-code, .remark-inline-code { font-family: 'Ubuntu Mono' typewriter; }
-      .remark-code-line-highlighted     { background-color: #373832; }
       .pull-left {
           float: left;
           width: 47%;
@@ -143,7 +142,8 @@ remark.macros.scale = function (percentage) {
 };
 
     var slideshow = remark.create({
-  sourceUrl: 'content.md'
+  sourceUrl: 'content.md',
+  highlightLines: true
 });
     </script>
   </body>

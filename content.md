@@ -5,32 +5,12 @@ class: center, middle, inverse
 ## using Jenkins and the Pipeline Plugins
 
 
-Steffen Gebert ([@StGebert](https://twitter.com/StGebert), first.last@typo3.org)
+Steffen Gebert ([@StGebert](https://twitter.com/StGebert))
 
-[TYPO3camp Munich, 2016](https://typo3camp-munich.de)
+[DevOps Camp Nürnberg, 2016](http://www.devops-camp.de)
 
-Available at https://github.com/StephenKing/t3cm16-jenkins-pipeline
+Available at https://github.com/StephenKing/dvoc16-jenkins-pipeline
 
-
----
-# Thanks
-
-### Organizers
-
-- [bgm](https://typo3.bgm-gmbh.de/), [pluswerk](http://pluswerk.ag/), [Portaltech Reply](https://portaltech.reply.eu/)
-
-### Platinum Sponsor
-
-- [jweiland.net](https://jweiland.net/), [punkt.de](https://punkt.de/), [HISCOX](https://www.hiscox.de/), [Mittwald](https://www.mittwald.de/)
-
-### Gold Sponsors
-
-- [eCentral](http://www.ecentral.de/), [in2code](https://www.in2code.de/), [Arrabiata](http://www.arrabiata.de/home/)
-
-
-### Silver Sponsors
-
-- [Spooner.Web](https://spooner-web.de/), [aimeos](https://aimeos.com/de/), [pixelink](https://www.pixel-ink.de/), [Sign & Sinn](https://signundsinn.de/), [SGALINSKI](https://www.sgalinski.de/), [datamints](http://www.datamints.com/), [mindscreen](http://www.mindscreen.de/)
 
 ---
 # /me
@@ -70,7 +50,6 @@ class: center, middle, inverse
 - Feedback to the team in every stage
   - Bring the pain forward
   - Fail fast, fail often
-  - Remember the Gamification talk!?
 
 ---
 class: center, middle, inverse
@@ -90,10 +69,6 @@ class: center, middle, inverse
   - AppVeyor
   - Codeship
   - Visual Studio Team Services
-
-- Related (but more limited scope)
-  - TYPO3 Surf
-  - Capistrano
    
 ---
 # Why (I like) Jenkins
@@ -189,10 +164,10 @@ class: center, middle, inverse
   - Define your pipeline as code (again Groovy DSL)
 
 ```groovy
-stage(name: "Hello") {
+stage("Hello") {
     echo "*Hello*"
 }
-stage(name: "World") {
+stage("World") {
     echo "*World*"
 }
 ```
@@ -208,10 +183,10 @@ stage(name: "World") {
 
 ```groovy
 node {
-    stage(name: "Build") {
+    stage("Build") {
         sh "echo Could run 'composer intall' now"
     }
-    stage(name: "Unit") {
+    stage("Unit") {
         sh "echo Could run 'phpunit' now"
     }     // ...
 }
@@ -222,19 +197,66 @@ node {
 # Pipeline Steps
 
 - Online docs: https://jenkins.io/doc/pipeline/steps/
+
 - Allocate a node
   - `node`: Allocate a node to execute job
   - `node('php')`: Allocates a node (with PHP installed)
+
 - Model pipeline visualisation `stage`
 - Get your code: `checkout "https://github.com/.."`
+
 - Execute commands: `sh` (*nix), `bat` (Windows)  
+
 - File Handling: `readFile`, `writeFile`, `fileExists`
+
 - Execute jobs in parallel: `parallel`
+
 - General build step (including parameters): Call any (compatible) plugin
 ```
 step([$class: 'ArtifactArchiver', artifacts: '*.jar'])
 ```
 - Call JobDSL plugin: `jobdsl`
+
+- Plugins contribute additional steps
+
+---
+
+# Confirm Deployment
+
+- Add manual confirmation prior to deployment
+
+![:scale 70%](img/input-timeout.png)
+
+```groovy
+stage("Signoff") {
+    timeout(time: 2, unit: 'HOURS') {
+*        input("Deploy that to prod?")
+    }
+}
+stage(name: "Deploy", concurrency: 1) { node {..} }
+```
+
+???
+node {
+    stage("Build") {
+        sh "echo Could run 'composer intall' now"
+    }
+    stage("Unit") {
+        sh "echo Could run 'phpunit' now"
+    }
+}
+
+stage("Signoff") {
+    timeout(time: 10, unit: 'SECONDS') {
+        input("Deploy that to prod?")
+    }
+}
+
+stage(name: "Deploy", concurrency: 1) {
+    node {
+        sh "echo rsync ..."
+    }
+}
 
 
 ---
@@ -247,7 +269,7 @@ step([$class: 'ArtifactArchiver', artifacts: '*.jar'])
 ```groovy
 stage("run in docker") {
     node {
-       withDockerContainer("php:7-fpm") {
+*       withDockerContainer("php:7-fpm") {
            sh "php -v"
        }
     }
@@ -255,7 +277,8 @@ stage("run in docker") {
 ```
 
 - Containers can be existing ones ore built on demand
-
+- .. and Kubernetes
+ 
 ---
 # Snippet Editor & Docs
 
@@ -279,7 +302,7 @@ stage("run in docker") {
 - But: Lacks reusability
 
 ---
-# Multibranch & Organization Folders
+# Multibranch & Org. Folders
 
 - Scans a complete GitHub/Bitbucket organisation for `Jenkinsfile`
   - Triggered by Webhook and/or runs periodically
@@ -292,7 +315,8 @@ stage("run in docker") {
 
 - Provides shared functionality available for all jobs
 - Stored on Jenkins master, available to all slaves
-- Available via Jenkins-integrated Git server
+	- Available via Jenkins-integrated Git server
+	- Can be loaded from remote Git repos, configured in Jenkins and `Jenkinsfile`
 
 - Add your own (Groovy) code
 
@@ -315,6 +339,7 @@ node {
   utils.mvn 'clean package'
 }
 ```
+
 ---
 class: center, middle, inverse
 # Real-World Example
@@ -352,6 +377,37 @@ pipe.execute()
   - (historically using _Git Flow_) 
 
 ---
+
+# Parallel Integration Tests
+
+- Run _Test-Kitchen_ (integration test for Chef cookbooks)
+- Run all instances in parallel (`kitchen verify <instance>`)
+
+```
+$ kitchen status
+Instance              Driver   Provisioner  [..] Last Action
+default-debian-78     Docker   ChefZero          <Not Created>
+default-debian-82     Docker   ChefZero          <Not Created>
+physical-debian-78    Docker   ChefZero          <Not Created>
+physical-debian-82    Docker   ChefZero          <Not Created>
+production-debian-78  Docker   ChefZero          <Not Created>
+production-debian-82  Docker   ChefZero          <Not Created>
+```
+- Extract list of instances from previous output
+
+```groovy
+def ArrayList<String> getInstances(){
+    def tkInstanceNames = []
+    node {
+        def lines = sh(script: 'kitchen list', returnStdout: true).split('\n')
+        for (int i = 1; i < lines.size(); i++) {
+            tkInstanceNames << lines[i].tokenize(' ')[0]
+        }
+    }
+    return tkInstanceNames
+}
+```
+---
 class: center, middle, inverse
 # Blue Ocean
 
@@ -377,6 +433,78 @@ class: center, middle, inverse
 
 ![:scale 100%](img/blue-detail.png)
 
+???
+
+```
+stage("whatever") {
+    echo "hello"
+}
+
+stage("run in docker") {
+    parallel(
+        php7: {
+            node {
+                withDockerContainer("php:7-fpm") {
+                    sh "php -v"
+                }
+            }
+        },
+        php5: {
+            node {
+                withDockerContainer("php:5") {
+                    sh "php -v"
+                }
+            }
+        }
+    )
+}
+
+stage("deploy") {
+    echo "GO!"
+}
+```
+
+---
+# Pipeline Editor
+
+
+![:scale 90%](img/pipeline-editor.png)
+
+(not yet available)
+
+Source: https://jenkins.io/blog/2016/09/19/blueocean-beta-declarative-pipeline-pipeline-editor/
+
+---
+
+# Declarative Pipelines
+
+- The code that I've shown is probably/maybe [outdated](https://jenkins.io/blog/2016/09/19/blueocean-beta-declarative-pipeline-pipeline-editor/)  (sorry ☺)
+
+```groovy
+pipeline {
+  agent docker:'node:6.3'
+  stages {
+    stage('build') {
+      sh '..'
+    }
+    stage ('test') {
+      sh 'npm test'
+    }
+  }
+
+  postBuild {
+    always {
+      sh 'echo "This will always run"'
+    }
+    failure {
+      sh 'echo "This will run only if failed"'
+    }
+  }
+}
+```
+
+
+
 ---
 # Summary
 
@@ -396,6 +524,9 @@ class: center, middle, inverse
  
 - Blue Ocean refreshes Jenkins' UI
 
+- Still couple of rough edges (failure handling, frequent changes)
+
+
 ---
 # Helpful Links
 
@@ -408,7 +539,7 @@ class: center, middle, inverse
 - Parallel execution: https://jenkins.io/blog/2016/06/16/parallel-test-executor-plugin/
 - Pipeline compatibility: https://jenkins.io/blog/2016/05/25/update-plugin-for-pipeline/
 - Extending pipeline DSL: https://jenkins.io/blog/2016/04/21/dsl-plugins/
-
+- Jenkins World 2016 Wrap Up - Pipelines: https://jenkins.io/blog/2016/09/24/jenkins-world-2016-wrap-up-pipeline/
 
 - TYPO3's Chef CI: https://chef-ci.typo3.org
 
