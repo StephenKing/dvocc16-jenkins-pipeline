@@ -9,7 +9,7 @@ Steffen Gebert ([@StGebert](https://twitter.com/StGebert))
 
 [DevOps Camp Nürnberg, 2016](http://www.devops-camp.de)
 
-Available at https://github.com/StephenKing/dvoc16-jenkins-pipeline
+Available at https://github.com/StephenKing/dvocc16-jenkins-pipeline
 
 
 ---
